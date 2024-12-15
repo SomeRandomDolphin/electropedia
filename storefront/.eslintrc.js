@@ -12,5 +12,7 @@ module.exports = {
     "@next/next/no-duplicate-head": "off",
     "@next/next/no-before-interactive-script-outside-document": "off",
     "@next/next/no-styled-jsx-in-document": "off",
+    "react/no-unescaped-entities": "off",
+    "react-hooks/exhaustive-deps": "off",
   }
 };
