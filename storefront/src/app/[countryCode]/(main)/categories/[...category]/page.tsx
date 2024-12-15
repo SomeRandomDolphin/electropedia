@@ -37,28 +37,46 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const countryCodes = await listRegions().then(
-    (regions) =>
-      regions
-        ?.map((r) => r.countries?.map((c) => c.iso_2))
-        .flat()
-        .filter(Boolean) as string[]
-  )
+  try {
+    const regions = await listRegions().catch(() => null)
+    const countryCodes = regions
+      ?.map((r) => r.countries?.map((c) => c.iso_2))
+      .flat()
+      .filter(Boolean) as string[]
 
-  if (!countryCodes) {
-    return null
-  }
+    if (!countryCodes || countryCodes.length === 0) {
+      console.warn("No country codes found, falling back to default")
+      return [{ countryCode: "id", category: ["all"] }]
+    }
 
-  const categories = await listCategories()
-
-  return countryCodes
-    .map((countryCode) =>
-      categories.map((category) => ({
+    const categories = await listCategories().catch(() => [])
+    
+    if (!categories || categories.length === 0) {
+      console.warn("No categories found, falling back to default")
+      return countryCodes.map(countryCode => ({
         countryCode,
-        category: category.handle.split("/"),
+        category: ["all"]
       }))
-    )
-    .flat()
+    }
+
+    const params = countryCodes
+      .map((countryCode) =>
+        categories.map((category) => {
+          const handle = category.handle || ""
+          return {
+            countryCode,
+            category: handle.split("/"),
+          }
+        })
+      )
+      .flat()
+      .filter(param => param.category.length > 0)
+
+    return params
+  } catch (error) {
+    console.error("Error generating static params:", error)
+    return [{ countryCode: "id", category: ["all"] }]
+  }
 }
 
 export default async function CategoryPage(props: Props) {
