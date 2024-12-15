@@ -5,37 +5,43 @@ import { HttpTypes } from "@medusajs/types"
 import { getCacheOptions } from "./cookies"
 
 export const listCategories = async (query?: Record<string, any>) => {
-  const next = {
-    ...(await getCacheOptions("categories")),
-  }
+  try {
+    const next = {
+      ...(await getCacheOptions("categories")),
+      revalidate: 3600,
+    }
 
-  const limit = query?.limit || 100
+    const limit = query?.limit || 100
 
-  return sdk.client
-    .fetch<{ product_categories: HttpTypes.StoreProductCategory[] }>(
+    const response = await sdk.client.fetch<{ product_categories: HttpTypes.StoreProductCategory[] }>(
       "/store/product-categories",
       {
         query: {
-          fields:
-            "*category_children, *products, *parent_category, *parent_category.parent_category",
+          fields: "*category_children, *products, *parent_category, *parent_category.parent_category",
           limit,
           ...query,
         },
         next,
       }
     )
-    .then(({ product_categories }) => product_categories)
+
+    return response.product_categories || []
+  } catch (error) {
+    console.error("Error fetching categories:", error)
+    return []
+  }
 }
 
 export const getCategoryByHandle = async (categoryHandle: string[]) => {
-  const handle = `${categoryHandle.join("/")}`
+  try {
+    const handle = `${categoryHandle.join("/")}`
 
-  const next = {
-    ...(await getCacheOptions("categories")),
-  }
+    const next = {
+      ...(await getCacheOptions("categories")),
+      revalidate: 3600,
+    }
 
-  return sdk.client
-    .fetch<HttpTypes.StoreProductCategoryListResponse>(
+    const response = await sdk.client.fetch<HttpTypes.StoreProductCategoryListResponse>(
       `/store/product-categories`,
       {
         query: {
@@ -45,5 +51,14 @@ export const getCategoryByHandle = async (categoryHandle: string[]) => {
         next,
       }
     )
-    .then(({ product_categories }) => product_categories[0])
+
+    if (!response.product_categories?.length) {
+      throw new Error(`Category not found: ${handle}`)
+    }
+
+    return response.product_categories[0]
+  } catch (error) {
+    console.error("Error fetching category by handle:", error)
+    throw error
+  }
 }
